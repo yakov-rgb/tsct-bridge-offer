@@ -652,6 +652,20 @@ function switchTab(tab) {
 function submitSignRequest() {
   var name = localStorage.getItem('tsct_nda_name_en') || 'Visitor';
   var email = localStorage.getItem('tsct_nda_email_en') || '';
+
+  // Send email notification via Web3Forms
+  fetch('https://api.web3forms.com/submit', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      access_key: '6f955dc9-c696-4aad-a29c-15a3eb860e4c',
+      subject: 'TSCT Bridge Offer — Signing Request Received',
+      name: name,
+      email: email,
+      message: 'A signing request was submitted on the TSCT Bridge Offer landing page.\n\nName: ' + name + '\nEmail: ' + email + '\nPage: English'
+    })
+  }).catch(function(){});
+
   fetch('/log-access', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
