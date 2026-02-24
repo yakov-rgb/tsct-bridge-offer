@@ -1079,6 +1079,20 @@
     const name = sessionStorage.getItem('nda_name') || 'משתמש';
     const email = sessionStorage.getItem('nda_email') || '';
     const ts = new Date().toLocaleString('he-IL', {timeZone:'Asia/Jerusalem'});
+
+    // Send email notification via Web3Forms
+    fetch('https://api.web3forms.com/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        access_key: '6f955dc9-c696-4aad-a29c-15a3eb860e4c',
+        subject: 'TSCT Bridge Offer — בקשת חתימה התקבלה',
+        name: name,
+        email: email,
+        message: 'בקשת חתימה הוגשה בדף הנחיתה העברי.\n\nשם: ' + name + '\nאימייל: ' + email + '\nזמן: ' + ts
+      })
+    }).catch(function(){});
+
     // Log sign request to backend
     fetch(BACKEND + '/send-nda-confirmation', {
       method: 'POST',
