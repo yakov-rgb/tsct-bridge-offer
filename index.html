@@ -1004,37 +1004,81 @@ function generateNDAPdf(name, email, phone, sigDataUrl, timestamp, dateStr, call
 
 // ===== SEND EMAIL =====
 function sendNDAEmail(name, email, phone, pdfBase64, timestamp, callback) {
-  var msgBody = 'הסכם סודיות נחתם בדף הנחיתה העברי של TSCT Bridge Offer.\n\n' +
-    'שם החותם: ' + name + '\n' +
+  // 1. Auto-download PDF to lender's device
+  if (pdfBase64) {
+    try {
+      var link = document.createElement('a');
+      link.href = 'data:application/pdf;base64,' + pdfBase64;
+      link.download = 'TSCT_NDA_Signed_' + name.replace(/\s+/g, '_') + '_' + new Date().toISOString().substring(0,10) + '.pdf';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch(e) { console.error('PDF download error:', e); }
+  }
+
+  var ndaText = [
+    'הסכם אי-גילוי וסודיות',
+    'הסכם זה נכרת בין The Smart Chip Tray Inc., תאגיד מדלאוור ("החברה"), לבין האדם המזוהה לעיל ("המקבל").',
+    '1. מידע סודי: על-ידי גישה לחומרי הלוואת הגישור הסודיים של החברה, המקבל מאשר כי כל המידע הכלול בהם הינו סודי וקנייני לחברה.',
+    '2. חובת אי-גילוי: המקבל מסכים שלא לגלות, לשכפל, להפיץ או להעביר כל מידע סודי לצד שלישי כלשהו ללא הסכמה מפורשת בכתב מהחברה.',
+    '3. הגבלת העברה: קישור הגישה שותף עם המקבל באופן אישי. כל הפצה נוספת מעבר למעגל האישי הקרוב של המקבל אסורה בהחלט.',
+    '4. אין הצעה פומבית: המידע אינו מהווה הצעה פומבית לניירות ערך.',
+    '5. דין חל: הסכם זה יוסדר על-פי חוקי מדינת דלאוור, ארה"ב.',
+    '6. קבלה: על-ידי חתימה על מסמך זה, המקבל מאשר כי קרא, הבין והסכים להיות מחויב לכל תנאי הסכם זה.'
+  ].join('\n\n');
+
+  var internalMsg = '\u2705 הסכם NDA נחתם דיגיטלית — TSCT Bridge Loan (עברית)\n' +
+    '========================================\n' +
+    'חותם: ' + name + '\n' +
     'אימייל: ' + email + '\n' +
     (phone ? 'טלפון: ' + phone + '\n' : '') +
+    'תאריך: ' + new Date().toLocaleDateString('he-IL', {year:'numeric',month:'long',day:'numeric'}) + '\n' +
     'חותמת זמן: ' + timestamp + '\n' +
-    'דף: עברית (index.html)\n\n' +
-    'The Smart Chip Tray Inc.';
+    'חתימה: דיגיטלית (canvas)\n' +
+    '========================================\n\n' +
+    'טקסט ההסכם המלא שאושר:\n' +
+    '========================================\n' +
+    ndaText;
 
+  // 2. Send notification to yakov@tsctai.com
   fetch('https://api.web3forms.com/submit', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       access_key: '6f955dc9-c696-4aad-a29c-15a3eb860e4c',
-      subject: 'TSCT Bridge NDA נחתם — ' + name,
+      subject: '\u2705 TSCT Bridge NDA נחתם — ' + name,
+      from_name: 'TSCT Bridge Loan Portal',
       name: name,
-      email: email,
-      message: msgBody
+      email: 'yakov@tsctai.com',
+      replyto: email,
+      message: internalMsg
     })
   }).catch(function(){});
 
+  // 3. Send confirmation to lender
+  var lenderMsg = 'שלום ' + name + ',\n\n' +
+    'תודה על חתימתך על הסכם אי-הגילוי עם The Smart Chip Tray Inc.\n\n' +
+    'הסכם ה-NDA החתום שלך נרשם עם הפרטים הבאים:\n' +
+    '- שם: ' + name + '\n' +
+    '- אימייל: ' + email + '\n' +
+    (phone ? '- טלפון: ' + phone + '\n' : '') +
+    '- תאריך: ' + new Date().toLocaleDateString('he-IL', {year:'numeric',month:'long',day:'numeric'}) + '\n' +
+    '- חותמת זמן: ' + timestamp + '\n\n' +
+    'עותק חתום של ה-NDA הורד למכשירך.\n\n' +
+    'בקשתך התקבלה. נחזור אליך תוך 24 שעות עם הסכם ההלוואה המלא לחתימה.\n\n' +
+    'בברכה,\nיעקב שאלתיאל\nThe Smart Chip Tray Inc.\nyakov@tsctai.com';
+
   fetch('https://api.web3forms.com/submit', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       access_key: '6f955dc9-c696-4aad-a29c-15a3eb860e4c',
-      subject: 'Your Signed NDA — The Smart Chip Tray Inc.',
+      subject: 'הסכם ה-NDA שלך — The Smart Chip Tray Inc.',
+      from_name: 'The Smart Chip Tray Inc.',
       name: 'The Smart Chip Tray Inc.',
-      email: 'yakov@tsctai.com',
-      replyto: email,
-      to: email,
-      message: 'Dear ' + name + ',\n\nThank you for signing the Confidentiality Agreement with The Smart Chip Tray Inc.\n\nYour signed NDA has been recorded:\n- Name: ' + name + '\n- Email: ' + email + '\n- Timestamp: ' + timestamp + '\n\nBest regards,\nYakov Shaaltiel\nThe Smart Chip Tray Inc.\nyakov@tsctai.com'
+      email: email,
+      replyto: 'yakov@tsctai.com',
+      message: lenderMsg
     })
   }).catch(function(){});
 

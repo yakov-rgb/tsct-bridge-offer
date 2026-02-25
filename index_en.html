@@ -1005,25 +1005,69 @@ function generateNDAPdf(name, email, phone, sigDataUrl, timestamp, dateStr, call
 
 // ===== SEND EMAIL =====
 function sendNDAEmail(name, email, phone, pdfBase64, timestamp, callback) {
-  var msgBody = 'NDA signed on TSCT Bridge Loan English landing page.\n\n' +
-    'Signer Name: ' + name + '\n' +
+  // 1. Auto-download PDF to lender's device
+  if (pdfBase64) {
+    try {
+      var link = document.createElement('a');
+      link.href = 'data:application/pdf;base64,' + pdfBase64;
+      link.download = 'TSCT_NDA_Signed_' + name.replace(/\s+/g, '_') + '_' + new Date().toISOString().substring(0,10) + '.pdf';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch(e) { console.error('PDF download error:', e); }
+  }
+
+  var ndaText = [
+    'NON-DISCLOSURE AND CONFIDENTIALITY AGREEMENT',
+    'This Confidentiality Agreement ("Agreement") is entered into between The Smart Chip Tray Inc., a Delaware corporation ("Company"), and the individual identified above ("Recipient").',
+    '1. Confidential Information: By accessing the Company\'s confidential bridge loan materials, the Recipient acknowledges that all information contained therein, including but not limited to business plans, financial projections, loan terms, client relationships, technology details, and any other non-public information (collectively, "Confidential Information"), is strictly confidential and proprietary to the Company.',
+    '2. Non-Disclosure Obligation: The Recipient agrees not to disclose, reproduce, copy, distribute, publish, or otherwise make available any Confidential Information to any third party without the prior express written consent of the Company.',
+    '3. Restricted Forwarding: The access link was shared with the Recipient personally. Any further distribution beyond the Recipient\'s immediate trusted circle is strictly prohibited.',
+    '4. No Public Offering: The information provided does not constitute a public offering of securities.',
+    '5. Governing Law: This Agreement shall be governed by the laws of the State of Delaware, USA.',
+    '6. Acceptance: By signing this document, the Recipient confirms they have read, understood, and agree to be bound by all terms of this Agreement.'
+  ].join('\n\n');
+
+  var internalMsg = '\u2705 NDA DIGITALLY SIGNED — TSCT Bridge Loan (English)\n' +
+    '========================================\n' +
+    'Signer: ' + name + '\n' +
     'Email: ' + email + '\n' +
     (phone ? 'Phone: ' + phone + '\n' : '') +
+    'Date: ' + new Date().toLocaleDateString('en-US', {year:'numeric',month:'long',day:'numeric'}) + '\n' +
     'Timestamp: ' + timestamp + '\n' +
-    'Page: English (index_en.html)\n\n' +
-    'The Smart Chip Tray Inc.';
+    'Signature: Digital (canvas)\n' +
+    '========================================\n\n' +
+    'FULL NDA TEXT AGREED TO:\n' +
+    '========================================\n' +
+    ndaText;
 
+  // 2. Send notification to yakov@tsctai.com
   fetch('https://api.web3forms.com/submit', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       access_key: '6f955dc9-c696-4aad-a29c-15a3eb860e4c',
-      subject: 'TSCT Bridge NDA Signed — ' + name,
+      subject: '\u2705 TSCT Bridge NDA Signed — ' + name,
+      from_name: 'TSCT Bridge Loan Portal',
       name: name,
-      email: email,
-      message: msgBody
+      email: 'yakov@tsctai.com',
+      replyto: email,
+      message: internalMsg
     })
   }).catch(function(){});
+
+  // 3. Send confirmation to lender
+  var lenderMsg = 'Dear ' + name + ',\n\n' +
+    'Thank you for signing the Non-Disclosure Agreement with The Smart Chip Tray Inc.\n\n' +
+    'Your signed NDA has been recorded with the following details:\n' +
+    '- Name: ' + name + '\n' +
+    '- Email: ' + email + '\n' +
+    (phone ? '- Phone: ' + phone + '\n' : '') +
+    '- Date: ' + new Date().toLocaleDateString('en-US', {year:'numeric',month:'long',day:'numeric'}) + '\n' +
+    '- Timestamp: ' + timestamp + '\n\n' +
+    'A signed copy of the NDA has been downloaded to your device.\n\n' +
+    'Your request has been received. We will get back to you within 24 hours with the full loan agreement for signature.\n\n' +
+    'Best regards,\nYakov Shaaltiel\nThe Smart Chip Tray Inc.\nyakov@tsctai.com';
 
   fetch('https://api.web3forms.com/submit', {
     method: 'POST',
@@ -1031,11 +1075,11 @@ function sendNDAEmail(name, email, phone, pdfBase64, timestamp, callback) {
     body: JSON.stringify({
       access_key: '6f955dc9-c696-4aad-a29c-15a3eb860e4c',
       subject: 'Your Signed NDA — The Smart Chip Tray Inc.',
+      from_name: 'The Smart Chip Tray Inc.',
       name: 'The Smart Chip Tray Inc.',
-      email: 'yakov@tsctai.com',
-      replyto: email,
-      to: email,
-      message: 'Dear ' + name + ',\n\nThank you for signing the Confidentiality Agreement with The Smart Chip Tray Inc.\n\nYour signed NDA has been recorded:\n- Name: ' + name + '\n- Email: ' + email + '\n- Timestamp: ' + timestamp + '\n\nBest regards,\nYakov Shaaltiel\nThe Smart Chip Tray Inc.\nyakov@tsctai.com'
+      email: email,
+      replyto: 'yakov@tsctai.com',
+      message: lenderMsg
     })
   }).catch(function(){});
 
